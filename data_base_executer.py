@@ -56,8 +56,13 @@ class DataBaseExecuter:
 				user_num = find_last_user_num(queue_id)[0][0] + 1
 
 			# Если очередь найдена, вставляем пользователя в базу данных
-			paste_user = db.prepare("insert into queue_user (queue_id, chat_id, num, waiting) values ($1, $2, $3, True)")
-			paste_user(queue_id, chat_id, user_num)
+			paste_user = db.prepare("insert into queue_user (queue_id, chat_id, num, is_in_queue) values ($1, $2, $3, True) returning id")
+			user_id = paste_user(queue_id, chat_id, user_num)[0][0]
+
+			# Если номер пользователя 0, то ставим его первым в очереди
+			if user_num == 0:
+				set_user_as_next_in_queue = db.prepare("update queue set next_user_id = $1 where id = $2")
+				set_user_as_next_in_queue(user_id, queue_id)
 
 			# Возвращаем 0 в случае успешного добавления пользователя
 			return user_num
@@ -69,15 +74,15 @@ class DataBaseExecuter:
 		with self.db as db:
 
 			# Находим очередь и номер пользователя по chat_id
-			find_queue_user = db.prepare("select (queue_id, num) from queue_user where queue_user.waiting = True and queue_user.chat_id = $1")
+			find_queue_user = db.prepare("select (queue_id, num) from queue_user where queue_user.is_in_queue = True and queue_user.chat_id = $1")
 			queue_user_result = find_queue_user(chat_id)
 
 			# Если такого пользователя не существует возвращаем -1
 			if len(queue_user_result) == 0:
 				return -1
 
-			# Переключаем статус пользователя на waiting = false
-			change_user_status = db.prepare("update queue_user set waiting = false where waiting = true and chat_id = $1")
+			# Переключаем статус пользователя на is_in_queue = false
+			change_user_status = db.prepare("update queue_user set is_in_queue = false where is_in_queue = true and chat_id = $1")
 			change_user_status(chat_id)
 
 			# Получаем id нужной очереди
@@ -87,7 +92,7 @@ class DataBaseExecuter:
 			queue_user_num = queue_user_result[0][0][1]
 
 			# Находим следующего пользоватлея в этой очереди
-			find_next_queue_user = db.prepare("select chat_id from queue_user where queue_user.waiting = True and queue_user.queue_id = $1 and queue_user.num = $2")
+			find_next_queue_user = db.prepare("select chat_id from queue_user where queue_user.is_in_queue = True and queue_user.queue_id = $1 and queue_user.num = $2")
 			next_queue_user_result = find_next_queue_user(queue_id, queue_user_num + 1)
 
 			# Если такого пользователя не существует переключаем статус очереди на active = false и возвращаем -2
