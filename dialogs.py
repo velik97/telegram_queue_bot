@@ -18,6 +18,8 @@ def join_success_respond (queue_name, number):
 # Finish Queue responds
 not_in_queue_respond = "It seems, that you are not in any queue"
 
+not_your_turn_respond = "It's not your turn yet"
+
 call = "It's your time"
 
 goodbye_respond = "Good luck!"

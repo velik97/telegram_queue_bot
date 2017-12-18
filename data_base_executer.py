@@ -1,110 +1,169 @@
 import postgresql
-import config
+from datetime import datetime, timedelta
+
+class Queue:
+	"""Класс очереди. Если id пользователей изначально неизвестны, они выставляются в значение -1"""
+
+	def __init__ (self, id, name, active, current_user_id, last_user_id):
+		self.id = id
+		self.name = name
+		self.active = active
+		self.current_user_id = current_user_id
+		self.last_user_id = last_user_id
+
+	def __str__ (self):
+		return ("Queue:\nId: " + str(self.id) + "\nName: " + str(self.name) +
+					"\nActive: " + str(self.active) + "\nCurrent user id: " +
+					str(self.current_user_id) + "\nLast user id: " + str(self.last_user_id))
+
+
+class QueueUser:
+	"""Класс участника очереди. Если id других пользователей или очереди изначально неизвестны, они выставляются в значение -1"""
+
+	def __init__(self, user_id, chat_id, queue_id, num, is_in_queue, is_in_session,
+				next_user_id, prev_user_id, start_time, finish_time, session_time):
+
+		self.id = user_id
+		self.chat_id = chat_id
+		self.queue_id = queue_id
+		self.num = num
+		self.is_in_queue = is_in_queue
+		self.is_in_session = is_in_session
+		self.next_user_id = next_user_id
+		self.prev_user_id = prev_user_id
+		self.start_time = start_time
+		self.finish_time = finish_time
+		self.session_time = session_time
+
+	def __str__(self):
+		return ("\nQueueUser:\nId:\t\t" + str(self.id) + "\nChat id:\t" + str(self.chat_id) +
+				"\nQueue id:\t" + str(self.queue_id) + "\nNum:\t\t" + str(self.num) +
+				"\nIs in queue:\t" + str(self.is_in_queue) + "\nIs in session:\t" + str(self.is_in_session) +
+				"\nNext user id:\t" + str(self.next_user_id) + "\nPrev user id:\t" + str(self.prev_user_id) +
+				"\nStart time:\t" + str(self.start_time) + "\nFinish time:\t" + str(self.finish_time) +
+				"\nSession time:\t" + str(self.session_time))
+
 
 class DataBaseExecuter:
 
-	def __init__ (self):
-		self.db = postgresql.open(config.db_host)
+	def __init__ (self, db_host):
+		self.db = postgresql.open(db_host)
+
+	def __enter__ (self):
+		return self
+
+	def __exit__ (self, Type, Value, Trace):
+		self.db.close()
 
 
-	def start_new_queue(self):
-		""" Cоздание новой очереди """
+	# Работа с классом Queue
 
+	def find_free_queue_name(self):
+		"""Нахождение первого свободного имени для очереди"""
 		i = 0
-		with self.db as db:
 
-			# Нахождение первого свободного названия из ряда 1, 2, 3 ...
-			check = db.prepare("select * from queue where queue.active = True and queue.name = $1")
-			while len(check(str(i))) > 0:
-				i = i + 1
+		check = self.db.prepare("select * from queue where active = True and name = $1")
 
-			# Создание очереди 
-			create = db.prepare("insert into queue (name, active) values ($1, True)")
-			create(str(i))
+		while len(check(str(i))) > 0:
+			i = i + 1
 
-		return i
+		return str(i)
 
 
-	def join_queue(self, chat_id ,queue_name):
-		""" Присоединение к новой очереди """
+	def create_new_queue(self, name, creator_user_id):
+		"""Записывает в бд новую очередь и возвращает ее"""
 
-		with self.db as db:
+		queue_id = self.db.query("insert into queue (name, active, current_user_id, last_user_id) values ({}, True, {}, {}) returning id".format(
+				name, creator_user_id, creator_user_id))[0][0]
 
-			# Проверяем, не стоит ли пользователь уже в какой-нибудь очерди
-			find_queue_user = db.prepare("select * from queue_user where waiting = true and chat_id = $1")
-			if find_queue_user(chat_id):
-				return -2;
-
-			# Находим очередь по имени
-			find_queue = db.prepare("select id from queue where queue.active = True and queue.name = $1")
-			queue_result = find_queue(queue_name)
-
-			# Если очередь не существует или не активна, возвращаем -1
-			if len(queue_result) == 0:
-				return -1
-
-			# Получаем id нужной очереди
-			queue_id = queue_result[0][0]
-
-			# Находим номер последнего пользователя, ставшего в очередь
-			find_last_user_num = db.prepare("select num from queue_user where num = (select max(num) from queue_user where queue_id = $1) and queue_id = $1")
-			last_user_num_result = find_last_user_num(queue_id)
-
-			# Если пользователей в очереди нет, то присвавыем нововому пользователю номер 0, иначе на один больше от последнего пользователя в очереди
-			user_num = 0
-			if len(last_user_num_result) > 0:
-				user_num = find_last_user_num(queue_id)[0][0] + 1
-
-			# Если очередь найдена, вставляем пользователя в базу данных
-			paste_user = db.prepare("insert into queue_user (queue_id, chat_id, num, is_in_queue) values ($1, $2, $3, True) returning id")
-			user_id = paste_user(queue_id, chat_id, user_num)[0][0]
-
-			# Если номер пользователя 0, то ставим его первым в очереди
-			if user_num == 0:
-				set_user_as_next_in_queue = db.prepare("update queue set next_user_id = $1 where id = $2")
-				set_user_as_next_in_queue(user_id, queue_id)
-
-			# Возвращаем 0 в случае успешного добавления пользователя
-			return user_num
+		return Queue(queue_id, name, True, creator_user_id, creator_user_id)
 
 
-	def finish_queue(self, chat_id):
-		""" Окончание стояния в очереди """
+	def find_active_queue_by_name(self, name):
+		"""Находит очередь по name и возвращает ее"""
 
-		with self.db as db:
+		result = self.db.query("select * from queue where active = True and name = '{}' ".format(name))
 
-			# Находим очередь и номер пользователя по chat_id
-			find_queue_user = db.prepare("select (queue_id, num) from queue_user where queue_user.is_in_queue = True and queue_user.chat_id = $1")
-			queue_user_result = find_queue_user(chat_id)
+		if len(result) == 0:
+			return None
 
-			# Если такого пользователя не существует возвращаем -1
-			if len(queue_user_result) == 0:
-				return -1
+		result = result[0]
 
-			# Переключаем статус пользователя на is_in_queue = false
-			change_user_status = db.prepare("update queue_user set is_in_queue = false where is_in_queue = true and chat_id = $1")
-			change_user_status(chat_id)
+		return Queue(result[0], result[1], result[2], result[3], result[4])
 
-			# Получаем id нужной очереди
-			queue_id = queue_user_result[0][0][0]
 
-			# Получаем номер пользователя в очереди
-			queue_user_num = queue_user_result[0][0][1]
+	def find_queue(self, queue_id):
+		"""Находит очередь по queue_id и возвращает ее"""
 
-			# Находим следующего пользоватлея в этой очереди
-			find_next_queue_user = db.prepare("select chat_id from queue_user where queue_user.is_in_queue = True and queue_user.queue_id = $1 and queue_user.num = $2")
-			next_queue_user_result = find_next_queue_user(queue_id, queue_user_num + 1)
+		result = self.db.query("select * from queue where id = '{}' ".format(queue_id))
 
-			# Если такого пользователя не существует переключаем статус очереди на active = false и возвращаем -2
-			if len(next_queue_user_result) == 0:
-				find_queue = db.prepare("update queue set active = false where id = $1")
-				find_queue(queue_id)
-				return -2
+		if len(result) == 0:
+			return None
 
-			# Получаем chat_id нужного пользователя и возвращаем его
-			next_queue_user_chat_id = next_queue_user_result[0][0]
-			return next_queue_user_chat_id
+		result = result[0]
 
+		return Queue(result[0], result[1], result[2], result[3], result[4])
+
+	
+	def update_queue(self, queue):
+		"""Обновляет состояние очереди, находя ее по id"""
+
+		self.db.execute("update queue set (active, current_user_id, last_user_id) = ({},{},{}) where id = {}".format(
+				queue.active, queue.current_user_id, queue.last_user_id, queue.id))
+
+
+
+	# =================================================================================================================
+	# Работа с классом QueueUser
+
+	def create_new_user(self, chat_id, queue_id):
+		"""Записывает в бд нового пользователя и возвращает его"""
+
+		user_id = self.db.query("insert into queue_user (chat_id, queue_id) values ({}, {}) returning id".format(chat_id, queue_id))[0][0]
+
+		return QueueUser(user_id, chat_id, queue_id, 0, True, False, -1, -1, datetime.now(), datetime.now(), timedelta())
+
+
+	def find_user(self, user_id):
+		"""Находит пользователя по user_id и возвращает его"""
+
+		result = self.db.query("select * from queue_user where id = {}".format(user_id))
+
+		if len(result) == 0:
+			return None
+
+		result = result[0]
+
+		return QueueUser(result[0], result[1], result[2], result[3], result[4], result[5], result[6], result[7], result[8], result[9], result[10])
+
+
+	def find_user_in_queue_by_chat_id(self, chat_id):
+		"""Находит пользователя с is_in_queue = True по chat_id и возвращает его"""
+
+		result = self.db.query("select * from queue_user where chat_id = {} and is_in_queue = True".format(chat_id))
+
+		if len(result) == 0:
+			return None
+
+		result = result[0]
+
+		return QueueUser(result[0], result[1], result[2], result[3], result[4], result[5], result[6], result[7], result[8], result[9], result[10])
+
+
+	def update_user(self, user):
+		"""Обновляет состояние queue_user, находя его по id"""
+
+		self.db.execute("update queue_user set (queue_id, num, is_in_queue, is_in_session, next_user_id, prev_user_id, start_time, finish_time, session_time)" +
+				" = ({}, {}, {}, {}, {}, {}, '{}', '{}', '{}') where id = {}".format(
+				user.queue_id, user.num, user.is_in_queue, user.is_in_session, user.next_user_id, user.prev_user_id, user.start_time, user.finish_time, user.session_time, user.id))
+
+
+	def user_is_in_queue(self, chat_id):
+		"""Проверяет, существует ли стоящий в очереди пользователь с данным chat_id"""
+
+		find_user_in_queue = self.db.query("select * from queue_user where is_in_queue = true and chat_id = {}".format(chat_id))
+
+		return len(find_user_in_queue) > 0
 
 
 
