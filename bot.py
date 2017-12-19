@@ -182,7 +182,7 @@ def how_long_to_wait(message):
 
 		time = time * (user.num - current_user.num)
 
-		bot.send_message(message.chat.id, dialogs.predict_respond(time.minutes))
+		bot.send_message(message.chat.id, dialogs.predict_respond(time.seconds / 60))
 
 
 
