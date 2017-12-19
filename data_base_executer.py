@@ -174,7 +174,7 @@ class DataBaseExecuter:
 		print(user_ids)
 
 		for user_id in user_ids:
-			users.append(db.find_user()user_id[0])
+			users.append(db.find_user(user_id[0]))
 
 		return users
 
