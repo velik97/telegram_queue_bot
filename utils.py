@@ -10,7 +10,7 @@ def not_in_queue_markup():
 def chose_queue_name_markup():
 	markup = types.ReplyKeyboardMarkup()
 	markup.row('1', '2', '3')
-        markup.row('4','5','6')
+    markup.row('4','5','6')
 	markup.row('7','8','9')
 	markup.row('0')
 
