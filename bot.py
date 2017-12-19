@@ -65,7 +65,7 @@ def pre_join_queue(message):
 
 	with DataBaseExecuter(config.db_host) as db:
 
-        if (db.user_is_in_queue(message.chat.id)):
+        if db.user_is_in_queue(message.chat.id):
             bot.send_message(message.chat.id, dialogs.already_in_queue_respond)
             return
 
