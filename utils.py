@@ -3,8 +3,8 @@ from telebot import types
 def not_in_queue_markup():
 	
 	markup = types.ReplyKeyboardMarkup()
-	markup.row('Начать очередь')
-	markup.row('Присоединиться к очереди')
+	markup.row('/Начать_очередь')
+	markup.row('/Присоединиться_к_очереди')
 
 	return markup
 
@@ -21,7 +21,7 @@ def chose_queue_name_markup():
 def finish_queue_markup():
 
 	markup = types.ReplyKeyboardMarkup()
-	markup.row('Закончить')
+	markup.row('/Закончить')
 
 	return markup
 

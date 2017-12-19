@@ -34,12 +34,13 @@ class WebhookServer(object):
         else:
             raise cherrypy.HTTPError(403)
 
+
 @bot.message_handler(commands=['start'])
 def start(message):
 
-	bot.send_message(message.chat.id, 'Приветик', reply_markup=utils.not_in_queue_markup())
+	bot.send_message(message.chat.id, dialogs.welcome, reply_markup=utils.not_in_queue_markup())
 
-@bot.message_handler(regexp=['Начать очередь'])
+@bot.message_handler(commands=['Начать_очередь'])
 def start_queue(message):
 
 	with DataBaseExecuter(config.db_host) as db:
@@ -60,7 +61,7 @@ def start_queue(message):
 		return
 
 
-@bot.message_handler(regexp=['Присоединиться к очереди'])
+@bot.message_handler(commands=['Присоединиться_к_очереди'])
 def pre_join_queue(message):
 
 	with DataBaseExecuter(config.db_host) as db:
@@ -104,7 +105,7 @@ def join_queue(message):
 		bot.send_message(message.chat.id, dialogs.join_success_respond(queue.name, str(new_user.num)), reply_markup = utils.clear_prev_markup())
 
 
-@bot.message_handler(regexp=['Закончить'])
+@bot.message_handler(commands=['Закончить'])
 def finish_queue(message):
 	
 	with DataBaseExecuter(config.db_host) as db:

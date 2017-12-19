@@ -1,4 +1,7 @@
 
+#Start
+welcome = "Приветик"
+
 # Start Queue responds
 def queue_started_respond (queue_name):
 	return "You've started queue with number " + queue_name
