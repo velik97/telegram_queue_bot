@@ -70,12 +70,16 @@ def pre_join_queue(message):
 			bot.send_message(message.chat.id, dialogs.already_in_queue_respond)
 			return
 
-		msg = bot.send_message(message.chat.id, 'Укажите номер очереди', reply_markup = utils.chose_queue_name_markup())
+		msg = bot.send_message(message.chat.id, dialogs.choise_queue_respond, reply_markup = utils.chose_queue_name_markup())
 
 		bot.register_next_step_handler(msg, join_queue)
 
 
 def join_queue(message):
+
+	if (message.text == 'Отменить')
+		bot.send_message(message.chat.id, dialogs.accept_cancel)
+		return
 
 	with DataBaseExecuter(config.db_host) as db:
 
