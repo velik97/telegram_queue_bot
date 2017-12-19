@@ -77,7 +77,7 @@ def pre_join_queue(message):
 
 def join_queue(message):
 
-	if (message.text == 'Отменить')
+	if message.text == 'Отменить':
 		bot.send_message(message.chat.id, dialogs.accept_cancel)
 		return
 
