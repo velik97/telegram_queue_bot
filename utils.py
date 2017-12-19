@@ -26,4 +26,4 @@ def finish_queue_markup():
 	return markup
 
 def clear_prev_markup():
-	return types.ReplyKeyboardHide()
+	return types.ReplyKeyboardRemove()
