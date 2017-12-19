@@ -78,7 +78,7 @@ def pre_join_queue(message):
 def join_queue(message):
 
 	if message.text == 'Отменить':
-		bot.send_message(message.chat.id, dialogs.accept_cancel)
+		bot.send_message(message.chat.id, dialogs.accept_cancel, reply_markup = utils.clear_prev_markup)
 		return
 
 	with DataBaseExecuter(config.db_host) as db:
