@@ -16,7 +16,7 @@ already_in_queue_respond = "Алё-малё, ты уже в очереди!"
 
 choise_queue_respond = "Укажи номер очереди, в которой хочешь потусить"
 
-accept_canel = "Ну не хочешь, как хочешь"
+accept_cancel = "Ну не хочешь, как хочешь"
 
 def join_success_respond (queue_name, number):
 	return "Ура! Теперь ты стоишь в очереди номер " + queue_name + "\nТвой номер в этой очереди " + number
