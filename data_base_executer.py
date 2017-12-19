@@ -165,6 +165,20 @@ class DataBaseExecuter:
 
 		return len(find_user_in_queue) > 0
 
+	def find_all_ex_users_in_queue(self, queue_id):
+
+		user_ids = self.db.query("select id from queue_user where queue_id = {} and is_in_queue = false and is_in_session = false".format(queue_id))
+
+		users = []
+
+		print(user_ids)
+
+		for user_id in user_ids:
+			users.append(db.find_user()user_id[0])
+
+		return users
+
+
 
 
 

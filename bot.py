@@ -78,7 +78,7 @@ def pre_join_queue(message):
 def join_queue(message):
 
 	if message.text == 'Отменить':
-		bot.send_message(message.chat.id, dialogs.accept_cancel, reply_markup = utils.clear_prev_markup())
+		bot.send_message(message.chat.id, dialogs.accept_cancel, reply_markup = utils.not_in_queue_markup())
 		return
 
 	with DataBaseExecuter(config.db_host) as db:
@@ -138,6 +138,10 @@ def finish_queue(message):
 			db.update_user(next_user)
 			bot.send_message(next_user.chat_id, dialogs.call, reply_markup = utils.finish_queue_markup())
 
+			if next_user.next_user_id != -1:
+				preparing_user = db.find_user(new_user.next_user_id)
+				bot.send_message(preparing_user.chat_id, dialogs.pre_call)
+
 		user.is_in_queue = False
 		user.is_in_session = False
 
@@ -147,6 +151,39 @@ def finish_queue(message):
 		db.update_user(user)
 		db.update_queue(queue)
 		bot.send_message(message.chat.id, dialogs.goodbye_respond, reply_markup = utils.not_in_queue_markup())
+		
+
+@bot.message_handler(commands=['Сколько_еще_ждать'])
+def how_long_to_wait(message):
+
+	with DataBaseExecuter(config.db_host) as db:
+
+		user = db.find_user_in_queue_by_chat_id(message.chat.id)
+
+		if user == None:
+			bot.send_message(message.chat.id, dialogs.not_in_queue_respond)
+			return
+
+		queue = db.find_queue(user.queue_id)
+
+		passed_users = db.find_all_ex_users_in_queue(queue.id)
+
+		if len(passed_users) == 0:
+			bot.send_message(message.chat.id, dialogs.cant_predict_respond)
+			return
+
+		time = timedelta(seconds = 0)
+		for user in passed_users:
+			time = time + user.session_time
+
+		time = time / len(passed_users)
+
+		current_user = db.find_user(queue.current_user_id)
+
+		time = time * (user.num - current_user.num)
+
+		bot.send_message(message.chat.id, dialogs.predict_respond(time.minutes))
+
 
 
 bot.remove_webhook()
